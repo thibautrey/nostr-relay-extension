@@ -1,0 +1,196 @@
+{% extends "base.html" %} {% from "macros.jinja" import window_vars with context
+%} {% block page %}
+<div class="row q-col-gutter-md">
+  <div class="col-12 col-md-7 q-gutter-y-md">
+    <q-card>
+      <q-card-section>
+        {% raw %}
+        <q-btn unelevated color="primary" @click="openCreateRelayDialog()"
+          >New relay
+        </q-btn>
+      </q-card-section>
+    </q-card>
+
+    <q-card>
+      <q-card-section>
+        <div class="row items-center no-wrap q-mb-md">
+          <div class="col">
+            <h5 class="text-subtitle1 q-my-none">Relays</h5>
+          </div>
+
+          <div class="col q-pr-lg">
+            <q-input
+              borderless
+              dense
+              debounce="300"
+              v-model="filter"
+              placeholder="Search"
+              class="float-right"
+            >
+              <template v-slot:append>
+                <q-icon name="search"></q-icon>
+              </template>
+            </q-input>
+          </div>
+          <div class="col-auto">
+            <q-btn outline color="grey" label="...">
+              <q-menu auto-close>
+                <q-list style="min-width: 100px">
+                  <q-item clickable>
+                    <q-item-section @click="exportrelayCSV"
+                      >Export to CSV</q-item-section
+                    >
+                  </q-item>
+                </q-list>
+              </q-menu>
+            </q-btn>
+          </div>
+        </div>
+        <q-table
+          flat
+          dense
+          :data="relayLinks"
+          row-key="id"
+          :columns="relaysTable.columns"
+          :pagination.sync="relaysTable.pagination"
+          :filter="filter"
+        >
+          <template v-slot:body="props">
+            <q-tr :props="props">
+              <q-td auto-width>
+                <q-btn
+                  size="sm"
+                  color="accent"
+                  round
+                  dense
+                  @click="props.row.expanded= !props.row.expanded"
+                  :icon="props.row.expanded? 'remove' : 'add'"
+                />
+              </q-td>
+
+              <q-td key="id" :props="props">
+                <a style="color: unset" :href="props.row.id" target="_blank">
+                  {{props.row.id}}</a
+                >
+              </q-td>
+              <q-td key="toggle" :props="props">
+                <q-toggle
+                  size="sm"
+                  color="secodary"
+                  v-model="props.row.active"
+                  @input="showToggleRelayDialog(props.row)"
+                ></q-toggle>
+              </q-td>
+              <q-td auto-width> {{props.row.name}} </q-td>
+              <q-td key="description" :props="props">
+                {{props.row.description}}
+              </q-td>
+              <q-td key="pubkey" :props="props">
+                <div>{{props.row.pubkey}}</div>
+              </q-td>
+              <q-td key="contact" :props="props">
+                <div>{{props.row.contact}}</div>
+              </q-td>
+            </q-tr>
+            <q-tr v-if="props.row.expanded" :props="props">
+              <q-td colspan="100%">
+                <div class="row items-center q-mb-lg">
+                  <div class="col-12">
+                    <relay-details
+                      :relay-id="props.row.id"
+                      :adminkey="g.user.wallets[0].adminkey"
+                      :inkey="g.user.wallets[0].inkey"
+                      :wallet-options="g.user.walletOptions"
+                      @relay-deleted="handleRelayDeleted"
+                      @relay-updated="handleRelayUpdated"
+                    ></relay-details>
+                  </div>
+                </div>
+              </q-td>
+            </q-tr>
+          </template>
+          {% endraw %}
+        </q-table>
+      </q-card-section>
+    </q-card>
+  </div>
+
+  <div class="col-12 col-md-5 q-gutter-y-md">
+    <q-card>
+      <q-card-section>
+        <h6 class="text-subtitle1 q-my-none">
+          {{SITE_TITLE}} Nostr Relay Extension
+        </h6>
+      </q-card-section>
+      <q-card-section class="q-pa-none">
+        <q-separator></q-separator>
+        <q-list> {% include "nostrrelay/_api_docs.html" %} </q-list>
+      </q-card-section>
+    </q-card>
+  </div>
+
+  <q-dialog v-model="formDialogRelay.show" position="top">
+    <q-card class="q-pa-lg q-pt-xl lnbits__dialog-card">
+      <q-card-section>
+        <div class="text-h6">New Relay</div>
+      </q-card-section>
+      <q-form @submit="sendFormDataRelay" class="q-gutter-md">
+        <q-input
+          v-if="g.user.admin"
+          filled
+          dense
+          v-model.trim="formDialogRelay.data.id"
+          type="text"
+          label="*Id"
+        ></q-input>
+        <q-input
+          filled
+          dense
+          v-model.trim="formDialogRelay.data.name"
+          type="text"
+          label="*Name"
+        ></q-input>
+        <q-input
+          filled
+          dense
+          v-model.trim="formDialogRelay.data.description"
+          type="text"
+          label="Description"
+        ></q-input>
+        <q-input
+          filled
+          dense
+          v-model.trim="formDialogRelay.data.pubkey"
+          type="text"
+          label="Relay Public Key"
+        ></q-input>
+        <q-input
+          filled
+          dense
+          v-model.trim="formDialogRelay.data.contact"
+          type="text"
+          label="Contact"
+        ></q-input>
+
+        <div class="row q-mt-lg">
+          <q-btn
+            unelevated
+            color="primary"
+            :disable="!formDialogRelay.data.name"
+            type="submit"
+            >Create Relay</q-btn
+          >
+          <q-btn v-close-popup flat color="grey" class="q-ml-auto"
+            >Cancel</q-btn
+          >
+        </div>
+      </q-form>
+    </q-card>
+  </q-dialog>
+</div>
+{% endblock %} {% block scripts %} {{ window_vars(user) }}
+<script src="{{ url_for('nostrrelay_static', path='js/utils.js') }}"></script>
+<script src="{{ url_for('nostrrelay_static', path='components/relay-details/relay-details.js') }}"></script>
+<script src="{{ url_for('nostrrelay_static', path='js/index.js') }}"></script>
+
+{% endblock %}

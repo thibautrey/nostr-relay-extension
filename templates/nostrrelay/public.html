@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    {% for url in VENDORED_CSS %}
+    <link rel="stylesheet" type="text/css" href="{{ url }}" />
+    {% endfor %}
+    <!---->
+    <link rel="stylesheet" type="text/css" href="/static/css/base.css" />
+    {% block styles %}{% endblock %}
+    <title>Verify @nostr-relay.org</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    {% if web_manifest %}
+    <link async="async" rel="manifest" href="{{ web_manifest }}" />
+    {% endif %} {% block head_scripts %}{% endblock %}
+</head>
+
+<body style="padding:20px" data-theme="bitcoin">
+    <q-layout id="vue" view="hHh lpR lfr" v-cloak>
+        {% block vue_templates %}{% endblock %}
+        <!---->
+        {% block page_container %}
+        <q-page-container>
+            <q-page>
+                <div class="row q-col-gutter-md">
+                    <div class="col-12 col-md-2 q-gutter-y-md"></div>
+                    <div class="col-12 col-md-6 q-gutter-y-md">
+                        <div style="width: 100%; text-align: center;">
+				<img src="https://nostr.build/i/nostr.build_25a9bd68e037854d70d3b443baa3faa13a8b833286d134a615d507a195633912.png" style="width: 120px; border-radius: 5px;"> 
+				<h5>Join relay.nostr-relay.org</h5>
+				<p>Joining our relay is free (read only). However, if you wish to post you will need to purchase some storge space.</p>
+			</div>
+                        <q-card class="q-pb-xl">
+                            <q-card-section>
+                                <div class="row">
+                                    <div class="col-9">
+                                        <q-input filled dense readonly v-model.trim="wssLink" type="text" label="Relay Link"></q-input>
+                                    </div>
+                                    <div class="col-3">
+                                        <q-btn outline color="grey" class="float-right" @click="copyText(wssLink)">Copy</q-btn>
+                                    </div>
+                                </div>
+                            </q-card-section>
+                            <q-card-section v-if="relay.config.isPaidRelay">
+                                <div class="row">
+                                    <div class="col-12">
+                                        <q-input filled dense v-model.trim="pubkey" type="text" label="Type your nostr Public Key"></q-input>
+                                    </div>
+                                </div>
+                            </q-card-section>
+                            <q-card-section v-if="relay.config.isPaidRelay">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <span class="text-bold">Cost to join: </span>
+                                    </div>
+                                    <div class="col-6">
+                                        <div>
+                                            <span v-text="relay.config.costToJoin"></span>
+                                            <span class="text-bold q-ml-sm">sats</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div v-if="relay.config.costToJoin">
+                                            <q-btn @click="createInvoice('join')" unelevated color="primary" class="float-right">Pay to
+                                                Join</q-btn>
+                                        </div>
+                                    </div>
+                                </div>
+                            </q-card-section>
+                            <q-card-section v-if="relay.config.isPaidRelay">
+                                <div class="row q-mt-md q-mb-md">
+                                    <div class="col-12 q-pt-sm">
+                                        <span class="text-bold">Storage cost: </span>
+                                        <span v-text="relay.config.storageCostValue"></span>
+                                        <span class="text-bold q-ml-sm"> sats per</span>
+                                        <q-badge color="orange">
+                                            <span v-text="relay.config.storageCostUnit"></span>
+                                        </q-badge>
+                                    </div>
+                                </div>
+                                <div class="row q-mt-md q-mb-md">
+                                    <div class="col-6">
+                                        <q-input v-if="relay.config.storageCostValue" filled dense v-model="unitsToBuy" type="number" min="0"
+                                            :label="relay.config.storageCostUnit"></q-input>
+                                    </div>
+                                    <div class="col-6 q-pt-sm">
+                                        <div v-if="relay.config.storageCostValue">
+                                            <span class="text-bold q-ml-md" v-text="storageCost"></span>
+                                            <span>sats</span>
+                                        </div>
+                                    </div>
+			        </div>
+				<div class="row q-mt-md q-mb-md">
+                                    <div class="col-12">
+                                        <div v-if="relay.config.storageCostValue">
+                                            <q-btn @click="createInvoice('storage')" unelevated color="primary" class="">Buy storage
+                                                space</q-btn>
+                                        </div>
+                                        <div v-else>
+                                            <q-badge color="green" class="float-right"><span>Free storage</span>
+                                            </q-badge>
+                                        </div>
+                                    </div>
+                                </div>
+                                <q-separator></q-separator>
+                            </q-card-section>
+                            <q-card-section v-else>
+                                <q-badge color="yellow" text-color="black">
+                                    <h5 class="text-subtitle1 q-my-none">
+                                        This is a free Nostr Relay
+                                    </h5>
+                                </q-badge>
+                            </q-card-section>
+                            <q-card-section>
+                                <q-expansion-item v-if="invoice" group="join-invoice" label="Invoice" :content-inset-level="0.5" default-opened>
+                                    <div class="row q-ma-md">
+                                        <div class="col-3"></div>
+                                        <div class="col-6 text-center">
+                                            <q-btn outline color="grey" @click="copyText(invoice)">Copy invoice</q-btn>
+                                        </div>
+                                        <div class="col-3"></div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-3"></div>
+                                        <div class="col-6">
+                                            <q-responsive :ratio="1">
+                                                <qrcode :value="'lightning:'+invoice" :options="{width: 340}" class="rounded-borders"></qrcode>
+                                            </q-responsive>
+                                        </div>
+                                        <div class="col-3"></div>
+                                        </div>
+                                        </q-expansion-item>
+                                        <q-expansion-item v-else-if="invoiceResponse">
+                                            <div class="row">
+                                                <div class="col-3"></div>
+                                                <div class="col-6">
+                                                    <q-icon v-if="invoiceResponse.success" name="check" style="color: green; font-size: 21.4em"></q-icon>
+                                                    <span v-else v-text="invoiceResponse.message"></span>
+                                                </div>
+                                                <div class="col-3"></div>
+                                            </div>
+                                        </q-expansion-item>
+                                        </q-card-section>
+                                        </q-card>
+                    </div>
+                </div>
+                </q-page>
+                </q-page-container>
+                {% endblock %} {% block scripts %}
+                
+                {% for url in VENDORED_JS %}
+                <script src="{{ url }}"></script>
+                {% endfor %}
+                <!---->
+                <script src="/static/js/base.js"></script>
+                <script src="/static/js/components.js"></script>
+        <script>
+            Vue.component(VueQrcode.name, VueQrcode)
+
+                new Vue({
+                    el: '#vue',
+                    mixins: [windowMixin],
+                    data: function () {
+                        return {
+                            relay: JSON.parse('{{relay | tojson | safe}}'),
+                            pubkey: '',
+                            invoice: '',
+                            invoiceResponse: null,
+                            unitsToBuy: 0
+                        }
+                    },
+                    computed: {
+                        storageCost: function () {
+                            if (!this.relay || !this.relay.config.storageCostValue) return 0
+                            return this.unitsToBuy * this.relay.config.storageCostValue
+                        },
+                        wssLink: function () {
+                            this.relay.config.domain =
+                                this.relay.config.domain || window.location.hostname
+                            return (
+                                'wss://' + this.relay.config.domain
+                            )
+                        }
+                    },
+                    methods: {
+                        createInvoice: async function (action) {
+                            if (!action) return
+                            this.invoice = ''
+                            if (!this.pubkey) {
+                                this.$q.notify({
+                                    timeout: 5000,
+                                    type: 'warning',
+                                    message: 'You forgot to type your nostr Public Key'
+                                })
+                                return
+                            }
+                            try {
+                                const reqData = {
+                                    action,
+                                    relay_id: this.relay.id,
+                                    pubkey: this.pubkey,
+                                    units_to_buy: this.unitsToBuy
+                                }
+                                const { data } = await LNbits.api.request(
+                                    'PUT',
+                                    '/nostrrelay/api/v1/pay',
+                                    '',
+                                    reqData
+                                )
+                                this.invoice = data.invoice
+                                const paymentHashTag = decode(data.invoice).data.tags.find(
+                                    t => t && t.description === 'payment_hash'
+                                )
+                                if (paymentHashTag) {
+                                    await this.waitForPaidInvoice(paymentHashTag.value)
+                                }
+                            } catch (error) {
+                                LNbits.utils.notifyApiError(error)
+                            }
+                        },
+                        waitForPaidInvoice: function (paymentHash) {
+                            try {
+                                const scheme = location.protocol === 'http:' ? 'ws' : 'wss'
+                                const port = location.port ? `:${location.port}` : ''
+                                const wsUrl = `${scheme}://${document.domain}${port}/api/v1/ws/${paymentHash}`
+                                const wsConnection = new WebSocket(wsUrl)
+                                wsConnection.onmessage = e => {
+                                    this.invoiceResponse = JSON.parse(e.data)
+                                    this.invoice = null
+                                    wsConnection.close()
+                                }
+                            } catch (error) {
+                                this.$q.notify({
+                                    timeout: 5000,
+                                    type: 'warning',
+                                    message: 'Failed to get invoice status',
+                                    caption: `${error}`
+                            })
+                            }
+                        }
+                    },
+                    created: function () { }
+            })
+</script>
+        {% endblock %}
+    </q-layout>
+</body>
+
+</html>
